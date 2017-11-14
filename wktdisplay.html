@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no">
+	<!-- load proj4js from CDN -->  
+	<link rel="stylesheet" href="https://js.arcgis.com/3.12/esri/css/esri.css">
+	<script src="https://js.arcgis.com/3.12/"></script>
+	<!--<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.4.4/proj4-src.js"></script> -->
+    <title></title>
+	
+  <style>
+  html, body, #map {
+    padding: 10;
+    margin: 10;
+    height: 100%;
+    width: 100%;
+  }
+</style>
+
+	
+<script>
+  var map;
+  var p; 
+  var pt;
+require(["esri/map", 
+	"esri/SpatialReference",
+	//"esri/tasks/ProjectParameters",
+	"esri/tasks/GeometryService",
+	"esri/geometry/webMercatorUtils",
+	"esri/symbols/SimpleFillSymbol",
+    "esri/symbols/SimpleLineSymbol",
+	"esri/symbols/SimpleMarkerSymbol",
+	"esri/graphic",
+	"esri/Color",
+	 "esri/geometry/Point",
+	"dojo/domReady!"], 
+  function(Map,SpatialReference, GeometryService, webMercatorUtils,SimpleFillSymbol,
+			SimpleLineSymbol,SimpleMarkerSymbol,Graphic,Color,Point) {
+	  map = new Map("map", {
+		basemap: "streets",
+		zoom: 8,  // Sets zoom level based on level of detail (LOD)
+		center: [-93.1568, 41.9689] 
+	  });
+	  
+	  gsvc = new GeometryService("https://utility.arcgisonline.com/ArcGIS/rest/services/Geometry/GeometryServer");
+	  
+	  symbolSize = 14;
+		lineColor = new Color([255, 255, 255]);
+		fillColor = new Color([164, 66, 244, 0.75]);
+		line = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID,
+					lineColor, 3);
+		sms = new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE,
+		symbolSize, line, fillColor);
+		
+	  map.on('click', xy2LatLong)
+   
+	function xy2LatLong(e){
+	
+		/*
+		var wkid4269 = '+proj=longlat +a=6378137.0 +b=6356752.31414036 +ellps=GRS80 +datum=NAD83 +units=degrees';  
+		var wkid26915 = '+proj=utm +zone=15 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'; 
+		*/
+	 
+	 //var string ="POINT(648629.2345600339 4799777.760588628)";
+	 var string= "POINT(397418.3125883266 4737732.098527765)";
+	 /*
+		POINT(514243.0624758346 4697284.20927047)
+		POINT(396428.5043587101 4736769.01326826)
+		POINT(550263.3207856998 4602715.22139475)
+		POINT(221167.63184365 4711276.13889605)
+		POINT(221949.69455554994 4711286.526334951)  */
+	 //var re = /(\d+\.\d+)\s(\d+\.\d+)/g;
+	 var re = /\d+\.\d+/g;
+	 var matches = string.match(re);
+	 console.log(matches);
+	 
+	 //var xy=re.exec(string)[0].replace(" ", ", ");
+	 
+	 //console.log(xy);
+	 
+	 /*
+		var projXY = proj4(wkid26915, wkid4269, [evt.mapPoint.x, evt.mapPoint.y]); 
+		var projXY = proj4js(wkid26915, wkid4269, [648629.2345600339, 4799777.760588628]); 
+	  console.log(projXY); */
+	  
+	 //p =new Point(-93.65667792968591, 41.592044960724884, new SpatialReference({ wkid: 4326 }));
+	 
+	 p =new Point(matches[0], matches[1], new SpatialReference({ wkid: 26915 }));
+	 console.log(p);
+	 var outSR = new SpatialReference(4326);
+	 
+     //var params = new ProjectParameters();
+	 //params.geometries = p; 
+	 //params.outSR = outSR;
+	 
+	 //gsvc.project(params, function(pp) { //use params doesn't work for this case 
+	 gsvc.project([ p ], outSR,function(pp) {
+	  console.log(pp);
+		pt = pp[0];
+		console.log(pt);
+	 });
+	 
+	 //sleep for 0.5 second, otherwise, project cannot finish
+	 function sleep (time) {  
+		  return new Promise((resolve) => setTimeout(resolve, time));
+	 }
+	 sleep(500).then(() => {
+		console.log(pt);
+		 map.graphics.clear();
+		graphic = new Graphic(pt, sms);
+		map.graphics.add(graphic);
+	 });
+		
+	  var mapPoint = e.mapPoint;
+	  console.log(mapPoint.x);
+	  console.log(mapPoint.y); 
+	  //var normalizedVal = webMercatorUtils.xyToLngLat(-10448439.05689467, 5208604.88004656);
+	  var normalizedVal = webMercatorUtils.xyToLngLat(mapPoint.x, mapPoint.y);
+	  console.log(normalizedVal); //returns 
+	  
+	  console.log(convertDDToDMS(normalizedVal[0],true));
+	  console.log(convertDDToDMS(normalizedVal[1],true));
+	  
+	  console.log(DDToDMS(normalizedVal[0]));
+	} 
+	function convertDDToDMS(deg, lng){
+		var d = parseInt(deg);
+		var minfloat  = Math.abs((deg-d) * 60); 
+		var m = Math.floor(minfloat);
+		var secfloat = (minfloat-m)*60;
+		var s = Math.round(secfloat); 
+		d = Math.abs(d);
+
+		if (s==60) {
+			m++;
+			s=0;
+		}
+		if (m==60) {
+			d++;
+			m=0;
+		}
+
+		return {
+			dir : deg<0?lng?'W':'E':lng?'N':'S',
+			deg : d,
+			min : m,
+			sec : s
+		};
+   } 
+
+	function DDToDMS(D){
+		return [0|D, 'd ', 0|(D<0?D=-D:D)%1*60, "' ", 0|D*60%1*60, '"'].join('');
+	}
+});
+
+</script>
+	
+</head>
+  
+  <body > <!--class="claro"-->
+  
+  
+  <div id="map"></div>
+</body>
+</html>

@@ -1,2 +1,4 @@
 log.txt
 .gitignore.txt
+/dir1
+*.txt
